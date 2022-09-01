@@ -3,8 +3,9 @@ services:
 
   proxy:
     ports:
-      - "80:80"
+      - "81:80"
       - "8090:8080"
+      - "8080:80"
     command:
       # Enable Docker in Traefik, so that it reads labels from Docker services
       - --providers.docker
@@ -28,6 +29,15 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-traefik-public-http.rule=Host(`${DOMAIN?Variable not set}`)
       - traefik.http.services.${STACK_NAME?Variable not set}-traefik-public.loadbalancer.server.port=80
 
+  db:
+    image: postgres:12
+    volumes:
+      - ../militariaku_data:/var/lib/postgresql/data/pgdata
+    env_file:
+      - .env
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+
   pgadmin:
     ports:
       - "5050:5050"
@@ -38,7 +48,7 @@ services:
 
   backend:
     ports:
-      - "8888:8888"
+      - "11088:11088"
     volumes:
       - ./backend/app:/app
     environment:
@@ -51,7 +61,7 @@ services:
         INSTALL_DEV: ${INSTALL_DEV-true}
         INSTALL_JUPYTER: ${INSTALL_JUPYTER-true}
     # command: bash -c "while true; do sleep 1; done"  # Infinite loop to keep container live doing nothing
-    command: /start-reload.sh
+    command: bash -c "./start-reload.sh; exec uvicorn --reload --host 0.0.0.0 --port 80 --log-level info app.main:app"
     labels:
       - traefik.enable=true
       - traefik.constraint-label-stack=${TRAEFIK_TAG?Variable not set}
@@ -71,18 +81,34 @@ services:
       args:
         INSTALL_DEV: ${INSTALL_DEV-true}
         INSTALL_JUPYTER: ${INSTALL_JUPYTER-true}
+    command: bash -c " celery worker -A app.worker -l info -Q main-queue -c 1"
 
   frontend:
+    volumes:
+      - ../militariaku_data/frontend/npm:/root/.npm #CI Cache
+      - ./frontend:/app
     build:
       context: ./frontend
       args:
         FRONTEND_ENV: dev
+    #command: bash -c "npm ci --cache .npm --prefer-offline; PORT=80 npm start" #react
     labels:
       - traefik.enable=true
       - traefik.constraint-label-stack=${TRAEFIK_TAG?Variable not set}
       - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.rule=PathPrefix(`/`)
       - traefik.http.services.${STACK_NAME?Variable not set}-frontend.loadbalancer.server.port=80
 
+  smtp4dev:
+    image: rnwood/smtp4dev:v3
+    ports:
+      # Change the number before : to the port the web interface should be accessible on
+      - '11500:80'
+      # Change the number before : to the port the SMTP server should be accessible on
+      - '25:25'
+    environment:
+      #Specifies the server hostname. Used in auto-generated TLS certificate if enabled.
+      - ServerOptions__HostName=smtp4dev
+      
 networks:
   traefik-public:
     # For local dev, don't expect an external Traefik network

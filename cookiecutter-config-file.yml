@@ -22,9 +22,9 @@ default_context:
   traefik_public_constraint_tag: 'traefik-public'
   flower_auth: 'admin:jalalAzhmatkhan94'
   sentry_dsn: ''
-  docker_image_prefix: 'MILITARIAKU_'
-  docker_image_backend: 'MILITARIAKU_BACKEND'
-  docker_image_celeryworker: 'MILITARIAKU_CELERYWORKER'
-  docker_image_frontend: 'MILITARIAKU_FRONTEND'
+  docker_image_prefix: 'militariaku_'
+  docker_image_backend: 'militariaku_BACKEND'
+  docker_image_celeryworker: 'militariaku_CELERYWORKER'
+  docker_image_frontend: 'militariaku_FRONTEND'
   _copy_without_render: [frontend/src/**/*.html, frontend/src/**/*.vue, frontend/node_modules/*, backend/app/app/email-templates/**]
   _template: ./
